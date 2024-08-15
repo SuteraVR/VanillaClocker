@@ -1,4 +1,6 @@
 use clap::Parser;
+use tokio::io::AsyncWriteExt;
+use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -7,8 +9,23 @@ struct Args {
     port: u16,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
 
-    println!("port: {}", args.port);
+    let addr = format!("0.0.0.0:{}", args.port);
+    let listener = TcpListener::bind(addr).await.unwrap();
+
+    loop {
+        let (stream, _) = listener.accept().await.unwrap();
+
+        tokio::spawn(async move {
+            process(stream).await;
+        });
+    }
+}
+
+async fn process(mut stream: TcpStream) {
+    let result = stream.write_all(b"hello world\n").await;
+    println!("wrote to stream; success={:?}", result.is_ok());
 }
