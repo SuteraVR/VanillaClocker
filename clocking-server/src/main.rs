@@ -3,7 +3,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    #[clap(short = 'p', long = "port", default_value = "3000")]
+    #[clap(short = 'p', long = "port", env, default_value = "3000")]
     port: u16,
 }
 
