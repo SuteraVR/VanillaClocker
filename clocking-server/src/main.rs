@@ -1,5 +1,5 @@
 use clap::Parser;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 #[derive(Parser, Debug)]
@@ -26,6 +26,15 @@ async fn main() {
 }
 
 async fn process(mut stream: TcpStream) {
-    let result = stream.write_all(b"hello world\n").await;
-    println!("wrote to stream; success={:?}", result.is_ok());
+    let mut buf = Vec::with_capacity(4096);
+    stream.read_buf(&mut buf).await.unwrap();
+
+    let msg = String::from_utf8(buf).expect("failed to convert String");
+    let result = stream.write(msg.as_bytes()).await;
+
+    println!(
+        "wrote to stream; msg={:?}, success={:?}",
+        msg,
+        result.is_ok()
+    );
 }
