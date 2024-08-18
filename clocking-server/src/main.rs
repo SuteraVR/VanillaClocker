@@ -1,4 +1,5 @@
 use clap::Parser;
+use dotenvy::dotenv;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -11,7 +12,11 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
+    dotenv().expect(".env file not found");
+
     let args = Args::parse();
+
+    dbg!(args.port);
 
     let addr = format!("0.0.0.0:{}", args.port);
     let listener = TcpListener::bind(addr).await.unwrap();
