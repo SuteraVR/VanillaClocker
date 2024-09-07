@@ -26,6 +26,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     let addr = format!("0.0.0.0:{}", args.port);
+    println!("listen {:?}", addr);
+
     let listener = TcpListener::bind(addr).await?;
 
     let acceptor =
