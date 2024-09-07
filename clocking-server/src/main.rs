@@ -22,7 +22,8 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    dotenv().expect(".env file not found");
+    let _ = dotenv();
+
     let args = Args::parse();
 
     let addr = format!("0.0.0.0:{}", args.port);
