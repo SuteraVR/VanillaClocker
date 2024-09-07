@@ -25,7 +25,7 @@ jobs:
 
       - name: Run rustfmt
         shell: bash
-        run: cargo fmt -- --check
+        run: cargo fmt --all -- --check
 
       - name: Run clippy
         shell: bash
