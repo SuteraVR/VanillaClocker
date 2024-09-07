@@ -23,25 +23,13 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().expect(".env file not found");
-
     let args = Args::parse();
-
-    let cert_file = rustls_pemfile::certs(&mut BufReader::new(&mut File::open(args.cert_path)?))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let private_key_file =
-        rustls_pemfile::private_key(&mut BufReader::new(&mut File::open(args.private_key_path)?))?
-            .unwrap();
-
-    let config = rustls::ServerConfig::builder()
-        .with_no_client_auth()
-        .with_single_cert(cert_file, private_key_file)?;
-    let acceptor = TlsAcceptor::from(Arc::new(config));
-
-    dbg!(args.port);
 
     let addr = format!("0.0.0.0:{}", args.port);
     let listener = TcpListener::bind(addr).await?;
+
+    let acceptor =
+        get_tls_acceptor(args.cert_path, args.private_key_path).expect("get tls acceptor error");
 
     loop {
         let (stream, _) = listener.accept().await?;
@@ -51,6 +39,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
             process(acceptor, stream).await.unwrap();
         });
     }
+}
+
+fn get_tls_acceptor(
+    cert_path: String,
+    private_key_path: String,
+) -> Result<TlsAcceptor, Box<dyn Error>> {
+    let cert_file = rustls_pemfile::certs(&mut BufReader::new(&mut File::open(cert_path)?))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let private_key_file =
+        rustls_pemfile::private_key(&mut BufReader::new(&mut File::open(private_key_path)?))?
+            .unwrap();
+
+    let config = rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(cert_file, private_key_file)?;
+
+    Ok(TlsAcceptor::from(Arc::new(config)))
 }
 
 async fn process(acceptor: TlsAcceptor, stream: TcpStream) -> Result<(), Box<dyn Error>> {
