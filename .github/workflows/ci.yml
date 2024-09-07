@@ -16,13 +16,17 @@ jobs:
           components: rustfmt, clippy
 
       - name: Build Binary
+        shell: bash
         run: cargo build --release
 
       - name: Run test
+        shell: bash
         run: cargo test --all-features
 
       - name: Run rustfmt
+        shell: bash
         run: cargo fmt -- --check
 
       - name: Run clippy
+        shell: bash
         run: cargo clippy -- -D warnings
