@@ -1,6 +1,5 @@
 use clap::Parser;
 use dotenvy::dotenv;
-use rustls_pemfile;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
