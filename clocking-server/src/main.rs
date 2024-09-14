@@ -25,10 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let args = Args::parse();
 
-    let addr = format!("0.0.0.0:{}", args.port);
-    println!("listen {:?}", addr);
-
-    let listener = TcpListener::bind(addr).await?;
+    let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port)).await?
 
     let acceptor =
         get_tls_acceptor(args.cert_path, args.private_key_path).expect("get tls acceptor error");
