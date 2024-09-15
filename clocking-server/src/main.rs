@@ -3,6 +3,7 @@ use dotenvy::dotenv;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
+use std::net::Ipv4Addr;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -25,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let args = Args::parse();
 
-    let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port)).await?
+    let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port)).await?;
 
     let acceptor =
         get_tls_acceptor(args.cert_path, args.private_key_path).expect("get tls acceptor error");
