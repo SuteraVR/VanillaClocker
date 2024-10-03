@@ -1,6 +1,8 @@
+mod err;
+
 use clap::Parser;
 use dotenvy::dotenv;
-use std::error::Error;
+use err::ClockerError;
 use std::fs::File;
 use std::io::BufReader;
 use std::net::Ipv4Addr;
@@ -8,6 +10,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::{rustls, TlsAcceptor};
+use tracing_spanned::SpanErr;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -21,18 +24,22 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), SpanErr<ClockerError>> {
     let _ = dotenv();
 
     let args = Args::parse();
 
-    let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port)).await?;
+    let Ok(listener) = TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port)).await else {
+        return Err(ClockerError::CreateTCPListener(args.port).into());
+    };
 
-    let acceptor =
-        get_tls_acceptor(args.cert_path, args.private_key_path).expect("get tls acceptor error");
+    let acceptor = get_tls_acceptor(args.cert_path, args.private_key_path)?;
 
     loop {
-        let (stream, _) = listener.accept().await?;
+        let Ok((stream, _)) = listener.accept().await else {
+            return Err(ClockerError::AcceptNewConnection.into());
+        };
+
         let acceptor = acceptor.clone();
 
         tokio::spawn(async move {
@@ -44,28 +51,50 @@ async fn main() -> Result<(), Box<dyn Error>> {
 fn get_tls_acceptor(
     cert_path: String,
     private_key_path: String,
-) -> Result<TlsAcceptor, Box<dyn Error>> {
-    let cert_file = rustls_pemfile::certs(&mut BufReader::new(&mut File::open(cert_path)?))
-        .collect::<Result<Vec<_>, _>>()?;
+) -> Result<TlsAcceptor, SpanErr<ClockerError>> {
+    let Ok(mut cert_file) = File::open(cert_path) else {
+        return Err(ClockerError::Unexpected.into());
+    };
 
-    let private_key_file =
-        rustls_pemfile::private_key(&mut BufReader::new(&mut File::open(private_key_path)?))?
-            .unwrap();
+    let Ok(cert) =
+        rustls_pemfile::certs(&mut BufReader::new(&mut cert_file)).collect::<Result<Vec<_>, _>>()
+    else {
+        return Err(ClockerError::Unexpected.into());
+    };
 
-    let config = rustls::ServerConfig::builder()
+    let Ok(mut private_key_file) = File::open(private_key_path) else {
+        return Err(ClockerError::Unexpected.into());
+    };
+
+    let Ok(Some(private_key)) =
+        rustls_pemfile::private_key(&mut BufReader::new(&mut private_key_file))
+    else {
+        return Err(ClockerError::Unexpected.into());
+    };
+
+    let Ok(config) = rustls::ServerConfig::builder()
         .with_no_client_auth()
-        .with_single_cert(cert_file, private_key_file)?;
+        .with_single_cert(cert, private_key)
+    else {
+        return Err(ClockerError::Unexpected.into());
+    };
 
     Ok(TlsAcceptor::from(Arc::new(config)))
 }
 
-async fn process(acceptor: TlsAcceptor, stream: TcpStream) -> Result<(), Box<dyn Error>> {
-    let mut tls_stream = acceptor.accept(stream).await?;
+async fn process(acceptor: TlsAcceptor, stream: TcpStream) -> Result<(), SpanErr<ClockerError>> {
+    let Ok(mut tls_stream) = acceptor.accept(stream).await else {
+        return Err(ClockerError::Unexpected.into());
+    };
 
     let mut buf = Vec::with_capacity(4096);
-    tls_stream.read_buf(&mut buf).await?;
+    let Ok(_) = tls_stream.read_buf(&mut buf).await else {
+        return Err(ClockerError::Unexpected.into());
+    };
 
-    let msg = String::from_utf8(buf)?;
+    let Ok(msg) = String::from_utf8(buf) else {
+        return Err(ClockerError::Unexpected.into());
+    };
     let result = tls_stream.write(msg.as_bytes()).await;
 
     println!(
