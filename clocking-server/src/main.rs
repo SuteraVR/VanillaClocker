@@ -26,10 +26,9 @@ struct Args {
     private_key_path: String,
 }
 
-#[tokio::main]
-#[instrument(skip_all, name = "main", level = "trace")]
-async fn main() -> Result<(), SpanErr<ClockerError>> {
-    let Ok(_) = tracing_subscriber::Registry::default()
+#[instrument(skip_all, name = "initialize_tracing_subscriber", level = "trace")]
+fn initialize_tracing_subscriber() -> Result<(), SpanErr<ClockerError>> {
+    let _ = match tracing_subscriber::Registry::default()
         .with(
             tracing_subscriber::fmt::layer()
                 .with_target(false)
@@ -37,9 +36,16 @@ async fn main() -> Result<(), SpanErr<ClockerError>> {
         )
         .with(ErrorLayer::default())
         .try_init()
-    else {
-        return Err(ClockerError::InitializeTracingSubscriber.into());
+    {
+        Ok(()) => return Ok(()),
+        Err(e) => return Err(ClockerError::InitializeTracingSubscriber(e).into()),
     };
+}
+
+#[tokio::main]
+#[instrument(skip_all, name = "main", level = "trace")]
+async fn main() -> Result<(), SpanErr<ClockerError>> {
+    initialize_tracing_subscriber()?;
 
     let _ = dotenv();
 

@@ -2,11 +2,12 @@ use std::{io, string::FromUtf8Error};
 
 use thiserror::Error;
 use tokio_rustls::rustls;
+use tracing_subscriber::util::TryInitError;
 
 #[derive(Error, Debug)]
 pub enum ClockerError {
-    #[error("initialize tracing subscriber error")]
-    InitializeTracingSubscriber,
+    #[error("initialize tracing subscriber error. {0}")]
+    InitializeTracingSubscriber(TryInitError),
     #[error("create tcp listener error. port: {0}")]
     CreateTCPListener(u16),
     #[error("accept new connection")]
