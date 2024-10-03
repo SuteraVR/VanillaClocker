@@ -10,7 +10,10 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::{rustls, TlsAcceptor};
+use tracing::instrument;
+use tracing_error::ErrorLayer;
 use tracing_spanned::SpanErr;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -24,7 +27,18 @@ struct Args {
 }
 
 #[tokio::main]
+#[instrument(skip_all, name = "main", level = "trace")]
 async fn main() -> Result<(), SpanErr<ClockerError>> {
+    tracing_subscriber::Registry::default()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(false)
+                .with_filter(tracing_subscriber::filter::LevelFilter::INFO),
+        )
+        .with(ErrorLayer::default())
+        .try_init()
+        .expect("failed to initialize subscriber");
+
     let _ = dotenv();
 
     let args = Args::parse();
@@ -48,6 +62,7 @@ async fn main() -> Result<(), SpanErr<ClockerError>> {
     }
 }
 
+#[instrument(skip_all, name = "get_tls_acceptor", level = "trace")]
 fn get_tls_acceptor(
     cert_path: String,
     private_key_path: String,
@@ -87,6 +102,7 @@ fn get_tls_acceptor(
     Ok(TlsAcceptor::from(Arc::new(config)))
 }
 
+#[instrument(skip_all, name = "process", level = "trace")]
 async fn process(acceptor: TlsAcceptor, stream: TcpStream) -> Result<(), SpanErr<ClockerError>> {
     let mut tls_stream = match acceptor.accept(stream).await {
         Ok(c) => c,
