@@ -29,7 +29,7 @@ struct Args {
 #[tokio::main]
 #[instrument(skip_all, name = "main", level = "trace")]
 async fn main() -> Result<(), SpanErr<ClockerError>> {
-    tracing_subscriber::Registry::default()
+    let Ok(_) = tracing_subscriber::Registry::default()
         .with(
             tracing_subscriber::fmt::layer()
                 .with_target(false)
@@ -37,7 +37,9 @@ async fn main() -> Result<(), SpanErr<ClockerError>> {
         )
         .with(ErrorLayer::default())
         .try_init()
-        .expect("failed to initialize subscriber");
+    else {
+        return Err(ClockerError::InitializeTracingSubscriber.into());
+    };
 
     let _ = dotenv();
 

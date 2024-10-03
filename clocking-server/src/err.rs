@@ -5,6 +5,8 @@ use tokio_rustls::rustls;
 
 #[derive(Error, Debug)]
 pub enum ClockerError {
+    #[error("initialize tracing subscriber error")]
+    InitializeTracingSubscriber,
     #[error("create tcp listener error. port: {0}")]
     CreateTCPListener(u16),
     #[error("accept new connection")]
