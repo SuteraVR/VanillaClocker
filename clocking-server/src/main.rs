@@ -51,15 +51,17 @@ async fn main() -> Result<(), SpanErr<ClockerError>> {
 
     let args = Args::parse();
 
-    let Ok(listener) = TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port)).await else {
-        return Err(ClockerError::CreateTCPListener(args.port).into());
+    let listener = match TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port)).await {
+        Ok(l) => l,
+        Err(e) => return Err(ClockerError::CreateTCPListener(e, args.port).into()),
     };
 
     let acceptor = get_tls_acceptor(args.cert_path, args.private_key_path)?;
 
     loop {
-        let Ok((stream, _)) = listener.accept().await else {
-            return Err(ClockerError::AcceptNewConnection.into());
+        let stream = match listener.accept().await {
+            Ok((stream, _)) => stream,
+            Err(e) => return Err(ClockerError::AcceptNewConnection(e).into()),
         };
 
         let acceptor = acceptor.clone();

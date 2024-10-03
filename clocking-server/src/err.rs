@@ -8,10 +8,10 @@ use tracing_subscriber::util::TryInitError;
 pub enum ClockerError {
     #[error("initialize tracing subscriber error. {0}")]
     InitializeTracingSubscriber(TryInitError),
-    #[error("create tcp listener error. port: {0}")]
-    CreateTCPListener(u16),
+    #[error("create tcp listener error. err: {0}, port: {1}")]
+    CreateTCPListener(io::Error, u16),
     #[error("accept new connection")]
-    AcceptNewConnection,
+    AcceptNewConnection(io::Error),
     #[error("private key pem section not found")]
     PrivateKeyPEMSectionNotFound,
     #[error("unexpected io error. {0}")]
