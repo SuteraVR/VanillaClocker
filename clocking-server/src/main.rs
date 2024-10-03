@@ -52,48 +52,56 @@ fn get_tls_acceptor(
     cert_path: String,
     private_key_path: String,
 ) -> Result<TlsAcceptor, SpanErr<ClockerError>> {
-    let Ok(mut cert_file) = File::open(cert_path) else {
-        return Err(ClockerError::Unexpected.into());
+    let mut cert_file = match File::open(cert_path) {
+        Ok(c) => c,
+        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
     };
 
-    let Ok(cert) =
-        rustls_pemfile::certs(&mut BufReader::new(&mut cert_file)).collect::<Result<Vec<_>, _>>()
-    else {
-        return Err(ClockerError::Unexpected.into());
+    let cert = match rustls_pemfile::certs(&mut BufReader::new(&mut cert_file))
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(c) => c,
+        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
     };
 
-    let Ok(mut private_key_file) = File::open(private_key_path) else {
-        return Err(ClockerError::Unexpected.into());
+    let mut private_key_file = match File::open(private_key_path) {
+        Ok(c) => c,
+        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
     };
 
-    let Ok(Some(private_key)) =
-        rustls_pemfile::private_key(&mut BufReader::new(&mut private_key_file))
-    else {
-        return Err(ClockerError::Unexpected.into());
+    let private_key = match rustls_pemfile::private_key(&mut BufReader::new(&mut private_key_file))
+    {
+        Ok(Some(c)) => c,
+        Ok(None) => return Err(ClockerError::PrivateKeyPEMSectionNotFound.into()),
+        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
     };
 
-    let Ok(config) = rustls::ServerConfig::builder()
+    let config = match rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(cert, private_key)
-    else {
-        return Err(ClockerError::Unexpected.into());
+    {
+        Ok(c) => c,
+        Err(e) => return Err(ClockerError::UnexpectedRustls(e).into()),
     };
 
     Ok(TlsAcceptor::from(Arc::new(config)))
 }
 
 async fn process(acceptor: TlsAcceptor, stream: TcpStream) -> Result<(), SpanErr<ClockerError>> {
-    let Ok(mut tls_stream) = acceptor.accept(stream).await else {
-        return Err(ClockerError::Unexpected.into());
+    let mut tls_stream = match acceptor.accept(stream).await {
+        Ok(c) => c,
+        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
     };
 
     let mut buf = Vec::with_capacity(4096);
-    let Ok(_) = tls_stream.read_buf(&mut buf).await else {
-        return Err(ClockerError::Unexpected.into());
+    let _ = match tls_stream.read_buf(&mut buf).await {
+        Ok(b) => b,
+        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
     };
 
-    let Ok(msg) = String::from_utf8(buf) else {
-        return Err(ClockerError::Unexpected.into());
+    let msg = match String::from_utf8(buf) {
+        Ok(b) => b,
+        Err(e) => return Err(ClockerError::UnexpectedFromUtf(e).into()),
     };
     let result = tls_stream.write(msg.as_bytes()).await;
 
