@@ -1,10 +1,10 @@
+mod cert;
 mod err;
 
+use cert::{read_cert_file, read_private_key_file};
 use clap::Parser;
 use dotenvy::dotenv;
 use err::ClockerError;
-use std::fs::File;
-use std::io::BufReader;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -75,29 +75,9 @@ fn get_tls_acceptor(
     cert_path: String,
     private_key_path: String,
 ) -> Result<TlsAcceptor, SpanErr<ClockerError>> {
-    let mut cert_file = match File::open(cert_path) {
-        Ok(c) => c,
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
+    let cert = read_cert_file(cert_path)?;
 
-    let cert = match rustls_pemfile::certs(&mut BufReader::new(&mut cert_file))
-        .collect::<Result<Vec<_>, _>>()
-    {
-        Ok(c) => c,
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
-
-    let mut private_key_file = match File::open(private_key_path) {
-        Ok(c) => c,
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
-
-    let private_key = match rustls_pemfile::private_key(&mut BufReader::new(&mut private_key_file))
-    {
-        Ok(Some(c)) => c,
-        Ok(None) => return Err(ClockerError::PrivateKeyPEMSectionNotFound.into()),
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
+    let private_key = read_private_key_file(private_key_path)?;
 
     let config = match rustls::ServerConfig::builder()
         .with_no_client_auth()
