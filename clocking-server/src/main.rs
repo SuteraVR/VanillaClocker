@@ -28,7 +28,7 @@ struct Args {
 
 #[instrument(skip_all, name = "initialize_tracing_subscriber", level = "trace")]
 fn initialize_tracing_subscriber() -> Result<(), SpanErr<ClockerError>> {
-    let _ = match tracing_subscriber::Registry::default()
+    tracing_subscriber::Registry::default()
         .with(
             tracing_subscriber::fmt::layer()
                 .with_target(false)
@@ -36,10 +36,9 @@ fn initialize_tracing_subscriber() -> Result<(), SpanErr<ClockerError>> {
         )
         .with(ErrorLayer::default())
         .try_init()
-    {
-        Ok(()) => return Ok(()),
-        Err(e) => return Err(ClockerError::InitializeTracingSubscriber(e).into()),
-    };
+        .map_err(ClockerError::InitializeTracingSubscriber)?;
+
+    Ok(())
 }
 
 #[tokio::main]
@@ -51,18 +50,17 @@ async fn main() -> Result<(), SpanErr<ClockerError>> {
 
     let args = Args::parse();
 
-    let listener = match TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port)).await {
-        Ok(l) => l,
-        Err(e) => return Err(ClockerError::CreateTCPListener(e, args.port).into()),
-    };
+    let listener = TcpListener::bind((Ipv4Addr::UNSPECIFIED, args.port))
+        .await
+        .map_err(|e| ClockerError::CreateTCPListener(e, args.port))?;
 
     let acceptor = get_tls_acceptor(args.cert_path, args.private_key_path)?;
 
     loop {
-        let stream = match listener.accept().await {
-            Ok((stream, _)) => stream,
-            Err(e) => return Err(ClockerError::AcceptNewConnection(e).into()),
-        };
+        let (stream, _) = listener
+            .accept()
+            .await
+            .map_err(ClockerError::AcceptNewConnection)?;
 
         let acceptor = acceptor.clone();
 
@@ -81,34 +79,28 @@ fn get_tls_acceptor(
 
     let private_key = read_private_key_file(private_key_path)?;
 
-    let config = match rustls::ServerConfig::builder()
+    let config = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(cert, private_key)
-    {
-        Ok(c) => c,
-        Err(e) => return Err(ClockerError::UnexpectedRustls(e).into()),
-    };
+        .map_err(ClockerError::UnexpectedRustls)?;
 
     Ok(TlsAcceptor::from(Arc::new(config)))
 }
 
 #[instrument(skip_all, name = "process", level = "trace")]
 async fn process(acceptor: TlsAcceptor, stream: TcpStream) -> Result<(), SpanErr<ClockerError>> {
-    let mut tls_stream = match acceptor.accept(stream).await {
-        Ok(c) => c,
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
+    let mut tls_stream = acceptor
+        .accept(stream)
+        .await
+        .map_err(ClockerError::UnexpectedIO)?;
 
     let mut buf = Vec::with_capacity(4096);
-    let _ = match tls_stream.read_buf(&mut buf).await {
-        Ok(b) => b,
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
+    let _ = tls_stream
+        .read_buf(&mut buf)
+        .await
+        .map_err(ClockerError::UnexpectedIO)?;
 
-    let msg = match String::from_utf8(buf) {
-        Ok(b) => b,
-        Err(e) => return Err(ClockerError::UnexpectedFromUtf(e).into()),
-    };
+    let msg = String::from_utf8(buf).map_err(ClockerError::UnexpectedFromUtf)?;
     let result = tls_stream.write(msg.as_bytes()).await;
 
     println!(

@@ -10,17 +10,11 @@ use tracing_spanned::SpanErr;
 pub fn read_cert_file(
     cert_path: String,
 ) -> Result<Vec<CertificateDer<'static>>, SpanErr<ClockerError>> {
-    let mut cert_file = match File::open(cert_path) {
-        Ok(c) => c,
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
+    let mut cert_file = File::open(cert_path).map_err(ClockerError::UnexpectedIO)?;
 
-    let cert = match rustls_pemfile::certs(&mut BufReader::new(&mut cert_file))
+    let cert = rustls_pemfile::certs(&mut BufReader::new(&mut cert_file))
         .collect::<Result<Vec<_>, _>>()
-    {
-        Ok(c) => c,
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
+        .map_err(ClockerError::UnexpectedIO)?;
 
     Ok(cert)
 }
@@ -29,17 +23,11 @@ pub fn read_cert_file(
 pub fn read_private_key_file(
     private_key_path: String,
 ) -> Result<PrivateKeyDer<'static>, SpanErr<ClockerError>> {
-    let mut private_key_file = match File::open(private_key_path) {
-        Ok(c) => c,
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
+    let mut private_key_file = File::open(private_key_path).map_err(ClockerError::UnexpectedIO)?;
 
-    let private_key = match rustls_pemfile::private_key(&mut BufReader::new(&mut private_key_file))
-    {
-        Ok(Some(c)) => c,
-        Ok(None) => return Err(ClockerError::PrivateKeyPEMSectionNotFound.into()),
-        Err(e) => return Err(ClockerError::UnexpectedIO(e).into()),
-    };
+    let private_key = rustls_pemfile::private_key(&mut BufReader::new(&mut private_key_file))
+        .map_err(ClockerError::UnexpectedIO)?
+        .ok_or(ClockerError::PrivateKeyPEMSectionNotFound)?;
 
     Ok(private_key)
 }
