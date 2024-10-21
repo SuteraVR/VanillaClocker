@@ -12,12 +12,18 @@ pub enum ClockerError {
     CreateTCPListener(io::Error, u16),
     #[error("accept new connection")]
     AcceptNewConnection(io::Error),
+    #[error("accept new stream")]
+    AcceptNewStream(io::Error),
     #[error("private key pem section not found")]
-    PrivateKeyPEMSectionNotFound,
-    #[error("unexpected io error. {0}")]
-    UnexpectedIO(io::Error),
+    ReadPrivateKeyPEMSection,
     #[error("unexpected rust ls error. {0}")]
-    UnexpectedRustls(rustls::Error),
-    #[error("unexpected convert error. {0}")]
-    UnexpectedFromUtf(FromUtf8Error),
+    BuildServer(rustls::Error),
+    #[error("failed to open file. {0}")]
+    OpenFile(io::Error),
+    #[error("failed to read file. {0}")]
+    ReadFile(io::Error),
+    #[error("failed to read buffer. {0}")]
+    ReadBuffer(io::Error),
+    #[error("failed to convert string. {0}")]
+    ConvertBuffer(FromUtf8Error),
 }

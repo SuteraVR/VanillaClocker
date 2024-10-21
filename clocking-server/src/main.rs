@@ -82,7 +82,7 @@ fn get_tls_acceptor(
     let config = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(cert, private_key)
-        .map_err(ClockerError::UnexpectedRustls)?;
+        .map_err(ClockerError::BuildServer)?;
 
     Ok(TlsAcceptor::from(Arc::new(config)))
 }
@@ -92,15 +92,15 @@ async fn process(acceptor: TlsAcceptor, stream: TcpStream) -> Result<(), SpanErr
     let mut tls_stream = acceptor
         .accept(stream)
         .await
-        .map_err(ClockerError::UnexpectedIO)?;
+        .map_err(ClockerError::AcceptNewStream)?;
 
     let mut buf = Vec::with_capacity(4096);
     let _ = tls_stream
         .read_buf(&mut buf)
         .await
-        .map_err(ClockerError::UnexpectedIO)?;
+        .map_err(ClockerError::ReadBuffer)?;
 
-    let msg = String::from_utf8(buf).map_err(ClockerError::UnexpectedFromUtf)?;
+    let msg = String::from_utf8(buf).map_err(ClockerError::ConvertBuffer)?;
     let result = tls_stream.write(msg.as_bytes()).await;
 
     println!(
