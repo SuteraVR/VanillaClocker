@@ -903,7 +903,7 @@ dependencies = [
 [[package]]
 name = "tracing_spanned"
 version = "0.1.0"
-source = "git+https://github.com/pulsuite/tracing_spanned?rev=6fed6097d13d117e4d35120f56450b156c33b77e#6fed6097d13d117e4d35120f56450b156c33b77e"
+source = "git+https://github.com/comnipl/tracing_spanned?rev=6fed6097d13d117e4d35120f56450b156c33b77e#6fed6097d13d117e4d35120f56450b156c33b77e"
 dependencies = [
  "tracing",
  "tracing-error",
