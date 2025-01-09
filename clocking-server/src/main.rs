@@ -1,5 +1,7 @@
 mod cert;
 mod err;
+mod instance;
+mod instance_manager;
 
 use cert::{read_cert_file, read_private_key_file};
 use clap::Parser;
