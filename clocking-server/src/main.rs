@@ -100,7 +100,7 @@ async fn process(acceptor: TlsAcceptor, stream: TcpStream) -> Result<(), SpanErr
         .await
         .map_err(ClockerError::ReadBuffer)?;
 
-    let msg = String::from_utf8(buf).map_err(ClockerError::ConvertBuffer)?;
+    let msg = String::from_utf8(buf).map_err(ClockerError::ConvertBufferToString)?;
     let result = tls_stream.write(msg.as_bytes()).await;
 
     println!(
